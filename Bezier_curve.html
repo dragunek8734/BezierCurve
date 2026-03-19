@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+
+<head>
+
+</head>
+
+<body>
+    <h1>Bezier curve</h1>
+    <div id="bezier_container">
+        <canvas id="bezier_canvas" width="500" height="500" style="border: 1px solid black;"></canvas>
+    </div>
+    <div id="bezier_values">
+
+        <input type="button" value="Add Bezier point" id="add_bezier_point">
+        <div id="bezier_points">
+
+        </div>
+    </div>
+
+
+    <script>
+        function InitializeBezier() {
+            const bezierPointsDiv = document.getElementById('bezier_points');
+            const addPointButton = document.getElementById('add_bezier_point');
+            const canvas = document.getElementById('bezier_canvas');
+            const ctx = canvas.getContext('2d');
+
+            let width = 500;
+            let height = 500;
+            let draggingPointIndex = -1;
+            const POINT_RADIUS = 5;
+            const CLICK_TOLERANCE = 10;
+
+
+            function AddBezierPoint(xVal = 0, yVal = 0) {
+                const bezierPoint = document.createElement('div');
+
+                bezierPoint.className = 'bezier_point';
+
+                const pointXLabel = document.createElement('p');
+                pointXLabel.innerText = 'Bezier point X';
+
+                const pointXInput = document.createElement('input');
+                pointXInput.type = 'number';
+                pointXInput.min = 0;
+                pointXInput.max = width;
+                pointXLabel.step = 1;
+                pointXInput.className = 'beizer_point_x';
+                pointXInput.value = xVal;
+
+                const pointYLabel = document.createElement('p');
+                pointYLabel.innerText = 'Bezier point Y';
+
+                const pointYInput = document.createElement('input');
+                pointYInput.type = 'number';
+                pointYInput.min = 0;
+                pointYInput.max = width;
+                pointYLabel.step = 1;
+                pointYInput.className = 'beizer_point_y';
+                pointYInput.value = yVal;
+
+                pointXInput.addEventListener('input', function() {
+                    DrawBezierCurve(0.001);
+                });
+
+                pointYInput.addEventListener('input', function() {
+                    DrawBezierCurve(0.001);
+                });
+
+                const remove_bezier_point = document.createElement('input');
+                remove_bezier_point.type = 'button';
+                remove_bezier_point.value = 'Remove point';
+                remove_bezier_point.className = 'remove_bezier_point';
+                remove_bezier_point.onclick = function () {
+                    remove_bezier_point.parentElement.remove();
+                    DrawBezierCurve(0.001);
+                }
+
+                bezierPoint.appendChild(pointXLabel);
+                bezierPoint.appendChild(pointXInput);
+                bezierPoint.appendChild(pointYLabel);
+                bezierPoint.appendChild(pointYInput);
+                bezierPoint.appendChild(remove_bezier_point);
+
+                bezierPointsDiv.appendChild(bezierPoint);
+
+            }
+
+            addPointButton.onclick = function () {
+                AddBezierPoint();
+                DrawBezierCurve(0.001);
+            }
+
+            // Canvas mouse event handling
+            canvas.addEventListener('mousedown', function(e) {
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                const bezierXVals = document.getElementsByClassName('beizer_point_x');
+                const bezierYVals = document.getElementsByClassName('beizer_point_y');
+
+                // Check if clicking on existing point
+                for (let i = 0; i < bezierXVals.length; i++) {
+                    const px = parseFloat(bezierXVals[i].value) || 0;
+                    const py = parseFloat(bezierYVals[i].value) || 0;
+                    const distance = Math.sqrt((mouseX - px) ** 2 + (mouseY - py) ** 2);
+
+                    if (distance <= CLICK_TOLERANCE) {
+                        draggingPointIndex = i;
+                        return;
+                    }
+                }
+
+                // If not clicking on existing point, add new one
+                AddBezierPoint(Math.round(mouseX), Math.round(mouseY));
+                DrawBezierCurve(0.001);
+            });
+
+            canvas.addEventListener('mousemove', function(e) {
+                if (draggingPointIndex === -1) return;
+
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                const bezierXVals = document.getElementsByClassName('beizer_point_x');
+                const bezierYVals = document.getElementsByClassName('beizer_point_y');
+
+                // Clamp to canvas boundaries
+                const newX = Math.max(0, Math.min(width, mouseX));
+                const newY = Math.max(0, Math.min(height, mouseY));
+
+                bezierXVals[draggingPointIndex].value = Math.round(newX);
+                bezierYVals[draggingPointIndex].value = Math.round(newY);
+
+                DrawBezierCurve(0.001);
+            });
+
+            canvas.addEventListener('mouseup', function(e) {
+                draggingPointIndex = -1;
+            });
+
+            canvas.addEventListener('mouseleave', function(e) {
+                draggingPointIndex = -1;
+            });
+        }
+
+        InitializeBezier();
+
+
+        //optimalization: iterative calculation of binomial coefficient
+         
+        function getBinomialCoefficient(n, k) {
+            if (k < 0 || k > n) return 0;
+            if (k === 0 || k === n) return 1;
+            if (k > n / 2) k = n - k; //(n over k) == (n over n-k)
+
+            let res = 1;
+            for (let i = 1; i <= k; i++) {
+                res = res * (n - i + 1) / i;
+            }
+            return res;
+        }
+
+
+        function DrawBezierCurve(step) {
+            const canvas = document.getElementById('bezier_canvas');
+            const ctx = canvas.getContext('2d');
+            const bezierXVals = document.getElementsByClassName('beizer_point_x');
+            const bezierYVals = document.getElementsByClassName('beizer_point_y');
+
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const n = bezierXVals.length - 1; 
+            if (n < 1) return []; 
+
+            const curvePoints = [];
+
+            
+            
+            // optimalization get newton symbol value one time before t loop
+            const coefficients = [];
+            for (let i = 0; i <= n; i++) {
+                coefficients.push(getBinomialCoefficient(n, i));
+            }
+
+            
+            for (let t = 0; t <= 1.00001; t += step) {
+                let t_clamped = Math.min(t, 1); // do not exceed 1 due float errors
+                let x = 0;
+                let y = 0;
+
+                for (let i = 0; i <= n; i++) {
+                    
+                    const binom = coefficients[i];
+
+                    
+                    const weight = binom * Math.pow(1 - t_clamped, n - i) * Math.pow(t_clamped, i);
+
+                    
+                    const px = parseFloat(bezierXVals[i].value) || 0;
+                    const py = parseFloat(bezierYVals[i].value) || 0;
+
+                    x += weight * px;
+                    y += weight * py;
+                }
+
+                curvePoints.push({ x: x, y: y });
+            }
+
+            // Draw control points
+            ctx.fillStyle = 'red';
+            for (let i = 0; i <= n; i++) {
+                const px = parseFloat(bezierXVals[i].value) || 0;
+                const py = parseFloat(bezierYVals[i].value) || 0;
+                ctx.beginPath();
+                ctx.arc(px, py, 5, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+
+            // Draw control polygon
+            if (n >= 1) {
+                ctx.strokeStyle = 'lightgray';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                const firstX = parseFloat(bezierXVals[0].value) || 0;
+                const firstY = parseFloat(bezierYVals[0].value) || 0;
+                ctx.moveTo(firstX, firstY);
+                for (let i = 1; i <= n; i++) {
+                    const px = parseFloat(bezierXVals[i].value) || 0;
+                    const py = parseFloat(bezierYVals[i].value) || 0;
+                    ctx.lineTo(px, py);
+                }
+                ctx.stroke();
+            }
+
+            // Draw Bezier curve
+            if (curvePoints.length > 1) {
+                ctx.strokeStyle = 'blue';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(curvePoints[0].x, curvePoints[0].y);
+                for (let i = 1; i < curvePoints.length; i++) {
+                    ctx.lineTo(curvePoints[i].x, curvePoints[i].y);
+                }
+                ctx.stroke();
+            }
+        }
+    </script>
+</body>
